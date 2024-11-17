@@ -1,6 +1,8 @@
-
-
+import asyncio
 import logging
+import sys
+from asyncio import wait_for
+from random import randint
 
 import telebot
 import configparser
@@ -10,16 +12,14 @@ import fileReader
 import student
 import project
 import inlineKeyboard
-
-
+import searcherProjects
 
 config = configparser.ConfigParser()
 
-# Токен бота
-
+# Подключение бота
 config.read("settings.ini")
 TOKEN = config["Telebot"]["TOKEN_BOT"]
-TOKEN = "7344115774:AAFky0J-2xlfyf7zzdxNAeMs7n0waphHU0Y"
+ADMIN = config["Telebot"]["ID"]
 bot = telebot.TeleBot(TOKEN)
 
 # Словари для хранения данных
@@ -31,31 +31,35 @@ institutes = dictionary.institutes
 directions = dictionary.directions
 time_available = dictionary.time_available
 
+#init
 stdn = student.Student()
 prjct = project.Project()
-
 flRdr = fileReader.FileReader()
+inlnKb = inlineKeyboard.InlineKeyboard()
+searcher_p = searcherProjects.SearcherProjects()
 
-
+#fields
 profile_edit = False
 project_edit = False
+do = True
 
-inlnKb = inlineKeyboard.InlineKeyboard()
+
 
 # Настройка логирования
 logging.basicConfig(filename='bot.log', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def setChatId(id):
-    stdn.chat_id = id
-    prjct.chat_id = id
 
-@bot.message_handler(commands=['start'])
-def start_command(message):
-    logging.info('Пользователь вошел в чат')
+
+def set_chat_id(id):
+    stdn.chat_id = id
+
+def set_id_for_new_project(id):
+    prjct.set_creator_id(id)
+    prjct.set_project_id(id)
+
+
+def main_menu(message):
     markup = telebot.types.InlineKeyboardMarkup()
-    setChatId(message.chat.id)
-    flRdr.open_profile_file(stdn)
-    stdn.name = message.from_user.first_name
     if not stdn.accomplished:
         markup.row(
             telebot.types.InlineKeyboardButton("Заполнить анкету\nстудента", callback_data='student_form'),
@@ -68,7 +72,8 @@ def start_command(message):
             telebot.types.InlineKeyboardButton("Заполнить анкету\nстудента заново", callback_data='student_form'),
         )
         markup.row(
-            telebot.types.InlineKeyboardButton("Посмотреть анкету\nстудента", callback_data='student_accomplished_form'),
+            telebot.types.InlineKeyboardButton("Посмотреть анкету\nстудента",
+                                               callback_data='student_accomplished_form'),
         )
         markup.row(
             telebot.types.InlineKeyboardButton("Заполнить карточку\nпроекта", callback_data='project_form')
@@ -78,15 +83,39 @@ def start_command(message):
         telebot.types.InlineKeyboardButton("Случайный проект", callback_data='random')
     )
     markup.add(telebot.types.InlineKeyboardButton("Техническая поддержка", callback_data='support'))
-    bot.send_message(message.chat.id, "Привет! Я бот, который поможет тебе найти команду для проекта или найти проект, который тебе подходит.  Что ты хочешь сделать?", reply_markup=markup)
+    bot.send_message(message.chat.id,
+                     "Привет! Я бот, который поможет тебе найти команду для проекта или найти проект, который тебе подходит.  Что ты хочешь сделать?",
+                     reply_markup=markup)
+    bot.send_message(ADMIN, f"С ботом взаимодействует пользователь: {message.chat.id}")
+
+@bot.message_handler(commands=['stop'])
+def stop_command(message):
+    if (message.chat.id == int(ADMIN)):
+        bot.send_message(message.chat.id, "Завершение работы бота")
+        bot.stop_polling()
+        try:
+            wait_for(10)
+        except:
+            print("Завершение работы!")
+        sys.exit(0)
+
+@bot.message_handler(commands=['start'])
+def start_command(message):
+    logging.info('Пользователь вошел в чат')
+    set_chat_id(message.chat.id)
+    flRdr.open_profile_file(stdn)
+    stdn.name = message.from_user.first_name
+    main_menu(message)
+
 
 @bot.callback_query_handler(func=lambda call: call.data == 'student_accomplished_form')
 def student_form(call):
+    chat_id = call.message.chat.id
     logging.info('Пользователь просматривает свою анкету')
     if stdn.accomplished and stdn.chat_id == call.message.chat.id:
-        bot.send_message(call.message.chat.id, "Анкета студента:\n\n" + stdn.__str__())
+        bot.send_message(chat_id, "Анкета студента:\n\n" + stdn.__str__())
     else:
-        bot.send_message(call.message.chat.id,"Анкета пуста")
+        bot.send_message(chat_id,"Анкета пуста")
     bot.send_message(call.message.chat.id, "Для возврата в меню -> /start")
 
 @bot.callback_query_handler(func=lambda call: call.data == 'student_form')
@@ -173,6 +202,7 @@ def portfolio_finish(call):
 @bot.callback_query_handler(func=lambda call: call.data == 'project_form')
 def project_form(call):
     project_edit = True
+    set_id_for_new_project(call.message.chat.id)
     bot.send_message(call.message.chat.id, "Заполните карточку проекта:\n\n1. Укажите название/тему вашего проекта:")
     bot.register_next_step_handler(call.message, project_name_question)
 
@@ -232,6 +262,18 @@ def project_time_available_question(call):
         bot.send_message(call.message.chat.id,f"Карточка проекта:\n{prjct.__str__()}")
     bot.send_message(call.message.chat.id, "Для возврата в меню -> /start")
 
+# Поиск проекта
+@bot.callback_query_handler(func=lambda call: call.data == 'search')
+def search_project(call):
+    try:
+        _list_projects = searcher_p.search_projects()
+        for i in range(0, len(_list_projects)):
+            bot.send_message(call.message.chat.id,(f"ID проекта: {_list_projects[i].get('project_id')}. Имя проекта: {_list_projects[i].get('name')}"))
+    except:
+        bot.send_message(call.message.chat.id, "Не удается открыть проекты.\nПовторите попытку еще раз")
+
+    bot.send_message(call.message.chat.id, "Для возврата в меню -> /start")
+
 
 # Техническая поддержка
 @bot.callback_query_handler(func=lambda call: call.data == 'support')
@@ -239,12 +281,41 @@ def support(call):
     bot.send_message(call.message.chat.id, "Свяжитесь с технической поддержкой по адресу: support@example.com")
     bot.send_message(call.message.chat.id, "Для возврата в меню -> /start")
 
-@bot.callback_query_handler(func=lambda call: call.data == 'search')
-def search_project(call):
-    flRdr.load_projects(projects)
-    for item in projects:
-        print(item)
+# Поиск случайного проекта
+@bot.callback_query_handler(func=lambda call: call.data == 'random')
+def search_random_project(call):
+    try:
+        projects = searcher_p.search_projects()
+        random_project = set_random_project(projects)
+        _prjct = project_project(prjct, random_project)
+    except:
+        bot.send_message(call.message.chat.id,"Не удается открыть проект.\nПовторите попытку еще раз")
+    else:
+        bot.send_message(call.message.chat.id,f"Случайный проект:\n{_prjct.__str__()}:")
+    bot.send_message(call.message.chat.id, "Для возврата в меню -> /start")
+
+
+def set_random_project(projects):
+    rand_project = randint(0, len(projects))
+    return projects[rand_project]
+
+def project_project(project1, project2):
+    project1.project_id = project2['project_id']
+    project1.creator_id = project2['creator_id']
+    project1.name = project2['name']
+    project1.concept = project2['concept']
+    project1.team_size = project2['team_size']
+    project1.need_participant = project2['need_participant']
+    project1.need_consultant = project2['need_consultant']
+    project1.required_skills = project2['required_skills']
+    project1.required_help = project2['required_help']
+    project1.time_available = project2['time_available']
+    project1.accomplished = True
+    return project1
 
 # Запуск бота
 if __name__ == '__main__':
-    bot.polling(none_stop=True)
+    if do:
+        bot.polling()
+    else:
+        bot.stop_polling()
