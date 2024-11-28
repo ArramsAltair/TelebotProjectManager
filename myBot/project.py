@@ -18,6 +18,7 @@ class Project:
     def set_project_id(self, creator_id):
         self.project_id = creator_id
 
+
     def __str__(self):
         return  f"Создатель проекта: {self.creator_id}\n" \
                 f"Название: {self.name}\n" \

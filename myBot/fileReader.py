@@ -53,7 +53,6 @@ class FileReader:
         if (os.path.exists(path)):
             with open(path, 'r') as f:
                 data = orjson.loads(f.read())
-                # print(data)
                 prjct.project_id = data['project_id']
                 prjct.creator_id = data['creator_id']
                 prjct.name = data['name']
@@ -65,7 +64,6 @@ class FileReader:
                 prjct.required_help = data['required_help']
                 prjct.time_available = data['time_available']
                 prjct.accomplished = True
-                #print(prjct.__str__())
         else:
             prjct.reset_project()
 
@@ -91,7 +89,6 @@ class FileReader:
         path = 'projects/'
         files_list = []
         files_dictionary = {}
-        i = 0
         for filename in glob.glob(os.path.join(path, file_resolution)):
             with open(os.path.join(os.getcwd(), filename), 'r') as f:
                 files_dictionary.update(data = orjson.loads(f.read()))

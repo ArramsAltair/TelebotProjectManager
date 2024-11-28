@@ -1,11 +1,14 @@
 import asyncio
 import logging
 import sys
-from asyncio import wait_for
+import time
+from asyncio import wait_for, timeout
 from random import randint
 
 import telebot
 import configparser
+
+from telebot.apihelper import send_message
 
 import dictionary
 import fileReader
@@ -48,8 +51,6 @@ do = True
 # Настройка логирования
 logging.basicConfig(filename='bot.log', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-
-
 def set_chat_id(id):
     stdn.chat_id = id
 
@@ -86,12 +87,15 @@ def main_menu(message):
     bot.send_message(message.chat.id,
                      "Привет! Я бот, который поможет тебе найти команду для проекта или найти проект, который тебе подходит.  Что ты хочешь сделать?",
                      reply_markup=markup)
-    bot.send_message(ADMIN, f"С ботом взаимодействует пользователь: {message.chat.id}")
+    send_message_log(f"С ботом взаимодействует пользователь: {message.chat.id}")
+
+def send_message_log(str):
+    bot.send_message(ADMIN, str)
 
 @bot.message_handler(commands=['stop'])
 def stop_command(message):
-    if (message.chat.id == int(ADMIN)):
-        bot.send_message(message.chat.id, "Завершение работы бота")
+    if message.chat.id == int(ADMIN):
+        send_message_log("Завершение работы бота")
         bot.stop_polling()
         try:
             wait_for(10)
@@ -313,9 +317,20 @@ def project_project(project1, project2):
     project1.accomplished = True
     return project1
 
+def bot_start():
+    try:
+        send_message_log("Бот запущен")
+        print("Бот запущен")
+        bot.polling()
+    except:
+        print("Не удалось запустить бота\nПовторная попытка запуска")
+        time.sleep(5)
+        bot_start()
+    else:
+        return
+
 # Запуск бота
 if __name__ == '__main__':
-    if do:
-        bot.polling()
-    else:
-        bot.stop_polling()
+    bot_start()
+    print("Бот остановлен")
+
