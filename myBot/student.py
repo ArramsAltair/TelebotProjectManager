@@ -17,7 +17,7 @@ class Student:
         self.alive = True
         self.accomplished = False
 
-    def setChatId(self, chat_id):
+    def set_chat_id(self, chat_id):
         self.chat_id = chat_id
 
     def __str__(self):
@@ -32,13 +32,13 @@ class Student:
                f"О себе: {self.about}\n" \
                f"Портфолио: {self.portfolio}"
 
-    def dataStudent(self):
+    def data_student(self):
         return f"Студент: {self.chat_id}, Имя: {self.name}, Курс: {self.course}, Институт: {self.institute}, Направление: {self.direction}, Навыки: {self.skills}, Умения: {self.abilities}, Время: {self.time_available}, О себе: {self.about}, Портфолио: {self.portfolio}"
 
-    def resetStudent(self):
+    def reset_student(self):
         id = self.chat_id
         dic = vars(self)
         for i in dic.keys():
             dic[i] = 0
         self.accomplished = False
-        self.setChatId(id)
+        self.set_chat_id(id)

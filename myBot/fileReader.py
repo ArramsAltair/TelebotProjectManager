@@ -21,9 +21,9 @@ class FileReader:
                 stdn.about = data['about']
                 stdn.portfolio = data['portfolio']
                 stdn.accomplished = True
-                print(stdn.__str__())
+                #print(stdn.__str__())
         else:
-            stdn.resetStudent()
+            stdn.reset_student()
 
     def write_profile_in_file(self, stdn):
         path = f'profiles/{stdn.chat_id}.json'
@@ -53,7 +53,8 @@ class FileReader:
         if (os.path.exists(path)):
             with open(path, 'r') as f:
                 data = orjson.loads(f.read())
-                # print(data)
+                prjct.project_id = data['project_id']
+                prjct.creator_id = data['creator_id']
                 prjct.name = data['name']
                 prjct.concept = data['concept']
                 prjct.team_size = data['team_size']
@@ -63,14 +64,15 @@ class FileReader:
                 prjct.required_help = data['required_help']
                 prjct.time_available = data['time_available']
                 prjct.accomplished = True
-                print(prjct.__str__())
         else:
-            prjct.resetProject()
+            prjct.reset_project()
+
 
     def write_project_in_json_file(self, prjct):
-        path = f'projects/{prjct.chat_id}.json'
+        path = f'projects/{prjct.project_id}.json'
         data = {
-            "chat_id": f"{prjct.chat_id}",
+            "project_id": f"{prjct.project_id}",
+            "creator_id": f"{prjct.creator_id}",
             "name": f"{prjct.name}",
             "concept": f"{prjct.concept}",
             "team_size": f"{prjct.team_size}",
@@ -83,8 +85,12 @@ class FileReader:
         with open(path, 'w') as json_file:
             json.dump(data, json_file, indent=4)
 
-    def load_projects(self, projects):
-        path = '/projects'
-        for filename in glob.glob(os.path.join(path, '*.json')):
-            with open(os.path.join(os.getcwd(), filename), 'r') as f:  # open in readonly mode
-                projects.update(data = orjson.loads(f.read()))
+    def load_files(self, path, file_resolution):
+        path = 'projects/'
+        files_list = []
+        files_dictionary = {}
+        for filename in glob.glob(os.path.join(path, file_resolution)):
+            with open(os.path.join(os.getcwd(), filename), 'r') as f:
+                files_dictionary.update(data = orjson.loads(f.read()))
+            files_list.append(files_dictionary.get('data'))
+        return files_list
